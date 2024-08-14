@@ -1,4 +1,12 @@
 {
-    "Key": 0,
-    "Games": []
+    "key": 10,
+    "coin": 0,
+    "games": [
+        false,
+        false
+    ],
+    "gameScores": [
+        0,
+        0
+    ]
 }

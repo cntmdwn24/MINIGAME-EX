@@ -2,57 +2,77 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
+using System.Collections.Generic;
 
-public class Game1 : MonoBehaviour
+public class Game2 : MonoBehaviour
 {
     [Header("UI Panels")]
     public GameObject PausePanel;
     public GameObject StartPanel;
+    public GameObject ColorButtonsPanel;
+
+    [Header("Score UI")]
+    public TMP_Text scoreText;
 
     [Header("Game Elements")]
     public GameObject objectToDestroy;
     public Image Heart1;
     public Image Heart2;
     public Image Heart3;
+    public Image marbleImage;
 
+    [Header("Color Buttons")]
+    public Button[] colorButtons;
+
+    [Header("Game Settings")]
+    public Color[] colors = new Color[9];
+
+    private List<int> sequence = new List<int>();
     private int score = 0;
     private int hearts = 3;
     private bool isPaused = true;
+    private bool isPlayerTurn = false;
+    private int currentStep = 0;
+
+    private GameManager gameManager;
 
     private void Start()
     {
-        PauseGame(); // 게임 시작 시 일시정지 상태로 설정
-        UpdateHearts(); // 하트 UI 초기화
+        PauseGame();
+        UpdateHearts();
+        gameManager = GameManager.Instance;
+        UpdateScoreUI();
     }
 
     #region Game Flow
     public void StartGame()
     {
-        StartPanel.SetActive(false); // 시작 패널 비활성화
-        ResumeGame(); // 게임 시작
+        StartPanel.SetActive(false);
+        ResumeGame();
+        StartCoroutine(GameTurn());
     }
 
     public void Pause()
     {
-        PausePanel.SetActive(true); // 일시정지 패널 활성화
+        PausePanel.SetActive(true);
         PauseGame();
     }
 
     public void ResumeGame()
     {
-        PausePanel.SetActive(false); // 일시정지 패널 비활성화
+        PausePanel.SetActive(false);
         UnpauseGame();
     }
 
     private void PauseGame()
     {
-        Time.timeScale = 0f; // 게임 속도를 0으로 설정하여 일시정지
+        Time.timeScale = 0f;
         isPaused = true;
     }
 
     private void UnpauseGame()
     {
-        Time.timeScale = 1f; // 게임 속도를 1로 설정하여 재개
+        Time.timeScale = 1f;
         isPaused = false;
     }
 
@@ -64,7 +84,6 @@ public class Game1 : MonoBehaviour
 
     private void ActivateCanvasObjects()
     {
-        // 모든 Canvas 오브젝트를 활성화
         Canvas[] allCanvasObjects = GameObject.FindObjectsOfType<Canvas>(true);
         foreach (Canvas canvasObject in allCanvasObjects)
         {
@@ -81,10 +100,61 @@ public class Game1 : MonoBehaviour
     }
     #endregion
 
+    #region Game Logic
+    private IEnumerator GameTurn()
+    {
+        isPlayerTurn = false;
+        currentStep = 0;
+
+        sequence.Add(Random.Range(0, colors.Length));
+
+        for (int i = 0; i < sequence.Count; i++)
+        {
+            marbleImage.color = colors[sequence[i]];
+            yield return new WaitForSeconds(1f);
+            marbleImage.color = Color.white;
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        isPlayerTurn = true;
+        ColorButtonsPanel.SetActive(true);
+    }
+
+    public void OnColorButtonClick(int colorIndex)
+    {
+        if (!isPlayerTurn) return;
+
+        if (colorIndex == sequence[currentStep])
+        {
+            currentStep++;
+            if (currentStep >= sequence.Count)
+            {
+                score += 10 * sequence.Count;
+                UpdateScoreUI();
+                StartCoroutine(GameTurn());
+                ColorButtonsPanel.SetActive(false);
+            }
+        }
+        else
+        {
+            DecreaseHearts();
+            ColorButtonsPanel.SetActive(false);
+            if (hearts <= 0)
+            {
+                GameOver();
+            }
+            else
+            {
+                StartCoroutine(GameTurn());
+            }
+        }
+    }
+    #endregion
+
     #region Score Management
     public void IncreaseScore(int amount)
     {
-        if (amount > 0) // 점수는 양수로만 증가하도록
+        if (amount > 0)
         {
             score += amount;
             UpdateScoreUI();
@@ -93,13 +163,15 @@ public class Game1 : MonoBehaviour
 
     private void UpdateScoreUI()
     {
-        // 점수 UI 업데이트 로직 추가
-        Debug.Log("Score updated: " + score);
+        if (scoreText != null)
+        {
+            scoreText.text = "Score: " + score.ToString();
+        }
     }
 
     private void AnswerCorrect()
     {
-        int pointsAwarded = 10; // 정답 시 획득하는 점수
+        int pointsAwarded = 10;
         IncreaseScore(pointsAwarded);
         Debug.Log("Correct Answer! Score increased by " + pointsAwarded);
     }
@@ -128,8 +200,9 @@ public class Game1 : MonoBehaviour
 
     private void GameOver()
     {
-        // 게임 오버 로직 추가
         Debug.Log("Game Over! No more hearts.");
+        // Save score and convert to keys before ending the game
+        LeaveGame();
     }
     #endregion
 
