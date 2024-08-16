@@ -1,52 +1,61 @@
 using UnityEngine;
 using TMPro;
-using System.IO;
 using UnityEngine.UI;
-using System.Collections;
+using System.IO;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
     #region Game Data
+    [Header("Game Data")]
     public GameData gameData;
     #endregion
 
     #region UI Elements
-    public GameObject gameOverPanel;
-    public TMP_Text keyText;
-    public TMP_Text coinText;
-    public GameObject selectGamePanel;
-    public GameObject menuPanel;
-    public GameObject stuffPanel;
-    public Image panel;
-    public Transform messageParent;
-    public GameObject canvas;
+    [Header("UI Elements")]
+    [SerializeField] private GameObject gameOverPanel;
+    [SerializeField] private TMP_Text keyText;
+    [SerializeField] private TMP_Text coinText;
+    [SerializeField] private GameObject selectGamePanel;
+    [SerializeField] private GameObject menuPanel;
+    [SerializeField] private GameObject stuffPanel;
+    [SerializeField] private Transform messageParent;
+    [SerializeField] private GameObject canvas;
+    [SerializeField] private Sprite defaultStageImage;
 
-    public TMP_Text selectedStageText;
-    public Image selectedStageImage;
-
+    [Header("Selected Stage UI")]
+    [SerializeField] private TMP_Text selectedStageText;
+    [SerializeField] private Image selectedStageImage;
     #endregion
 
     #region Message Prefabs
-    public GameObject successMessagePrefab;
-    public GameObject failureMessagePrefab;
-    public GameObject lockedStageMessagePrefab;
-    public GameObject stageSelectedMessagePrefab;
+    [Header("Message Prefabs")]
+    [SerializeField] private GameObject successMessagePrefab;
+    [SerializeField] private GameObject failureMessagePrefab;
+    [SerializeField] private GameObject lockedStageMessagePrefab;
+    [SerializeField] private GameObject stageSelectedMessagePrefab;
     #endregion
 
     #region Mini Game Settings
-    public GameObject[] miniGamePrefabs;
-    public Transform gameSpawnPoint;
-    public Sprite[] stageImages;
+    [Header("Mini Game Settings")]
+    [SerializeField] private GameObject[] miniGamePrefabs;
+    [SerializeField] private Transform gameSpawnPoint;
+    [SerializeField] private Sprite[] stageImages;
+    [SerializeField] private string[] miniGameNames;
+
     private const int STAGE_COST = 10;
     private int selectedStageIndex = -1;
     private GameObject currentMiniGameInstance;
-    private float time = 0f;
-    private float fadeTime = 1f;
     #endregion
 
-    void Awake()
+    #region Reward System
+    [Header("Reward System")]
+    [SerializeField] private Reward[] rewards;
+    #endregion
+
+    #region Unity Callbacks
+    private void Awake()
     {
         if (Instance == null)
         {
@@ -59,11 +68,13 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    void Start()
+    private void Start()
     {
         gameOverPanel.SetActive(false);
         UpdateUI();
+        InitializeRewardButtons();
     }
+    #endregion
 
     #region UI Handling
     public void GameStart()
@@ -82,13 +93,13 @@ public class GameManager : MonoBehaviour
         selectGamePanel.SetActive(false);
     }
 
-    void CloseSelectGamePanel()
+    private void CloseSelectGamePanel()
     {
         selectGamePanel.SetActive(false);
         menuPanel.SetActive(true);
     }
 
-    void ShowMessage(GameObject messagePrefab)
+    private void ShowMessage(GameObject messagePrefab)
     {
         if (messagePrefab != null && messageParent != null)
         {
@@ -97,40 +108,28 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    void UpdateUI()
+    private void UpdateUI()
     {
-        if (keyText != null)
-        {
-            keyText.text = "Keys: " + gameData.key.ToString();
-        }
-
-        if (coinText != null)
-        {
-            coinText.text = "Coins: " + gameData.coin.ToString();
-        }
-
+        if (keyText != null) keyText.text = $"Keys: {gameData.key}";
+        if (coinText != null) coinText.text = $"Coins: {gameData.coin}";
         UpdateSelectedStageDisplay();
     }
 
-    void UpdateSelectedStageDisplay()
+    private void UpdateSelectedStageDisplay()
     {
         if (selectedStageText != null)
         {
-            if (selectedStageIndex >= 0 && selectedStageIndex < miniGamePrefabs.Length)
+            if (IsValidStageIndex(selectedStageIndex))
             {
-                selectedStageText.text = "Selected Stage: " + (selectedStageIndex + 1);
-                if (selectedStageImage != null && stageImages != null && stageImages.Length > selectedStageIndex)
-                {
-                    selectedStageImage.sprite = stageImages[selectedStageIndex];
-                }
+                selectedStageText.text = $"{miniGameNames[selectedStageIndex]} 선택됨";
+                selectedStageImage.sprite = stageImages != null && stageImages.Length > selectedStageIndex
+                    ? stageImages[selectedStageIndex]
+                    : defaultStageImage;
             }
             else
             {
-                selectedStageText.text = "No Stage Selected";
-                if (selectedStageImage != null)
-                {
-                    selectedStageImage.sprite = null;
-                }
+                selectedStageText.text = "선택된 미니게임이 없습니다";
+                selectedStageImage.sprite = defaultStageImage;
             }
         }
     }
@@ -174,7 +173,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    bool IsValidStageIndex(int stageIndex)
+    private bool IsValidStageIndex(int stageIndex)
     {
         return stageIndex >= 0 && stageIndex < gameData.games.Length;
     }
@@ -189,7 +188,6 @@ public class GameManager : MonoBehaviour
             {
                 Destroy(currentMiniGameInstance);
             }
-
             canvas.SetActive(false);
             currentMiniGameInstance = Instantiate(miniGamePrefabs[selectedStageIndex], gameSpawnPoint.position, Quaternion.identity);
         }
@@ -206,17 +204,87 @@ public class GameManager : MonoBehaviour
             Destroy(currentMiniGameInstance);
         }
         canvas.SetActive(true);
-
-        int keysToAdd = score / 10;
-        gameData.key += keysToAdd;
+        gameData.key += score / 10;
         gameData.gameScores[selectedStageIndex] = score;
         UpdateUI();
     }
     #endregion
 
+    #region Reward System
+    private void InitializeRewardButtons()
+    {
+        foreach (var reward in rewards)
+        {
+            if (reward.rewardButton != null)
+            {
+                Button localRewardButton = reward.rewardButton;
+                localRewardButton.onClick.AddListener(() => CheckAndClaimReward(localRewardButton));
+            }
+        }
+    }
+
+    public void CheckAndClaimReward(Button rewardButton)
+    {
+        Reward reward = System.Array.Find(rewards, r => r.rewardButton == rewardButton);
+
+        if (reward.rewardButton == null) return;
+
+        if (!reward.rewardClaimed && gameData.key >= reward.requiredKeys)
+        {
+            ClaimReward(reward);
+        }
+        else
+        {
+            UpdateRewardButtonState(reward);
+        }
+    }
+
+    private void ClaimReward(Reward reward)
+    {
+        gameData.coin += reward.rewardCoins;
+        UpdateUI();
+        ShowMessage(lockedStageMessagePrefab);
+
+        var colors = reward.rewardButton.colors;
+        colors.normalColor = Color.gray;
+        reward.rewardButton.colors = colors;
+
+        if (reward.PointImage != null)
+        {
+            reward.PointImage.gameObject.SetActive(false);
+        }
+
+        reward.rewardClaimed = true;
+    }
+
+    private void UpdateRewardButtonState(Reward reward)
+    {
+        var colors = reward.rewardButton.colors;
+
+        if (gameData.key >= reward.requiredKeys)
+        {
+            colors.normalColor = Color.red;
+            if (reward.PointImage != null)
+            {
+                reward.PointImage.gameObject.SetActive(true);
+            }
+        }
+        else
+        {
+            colors.normalColor = Color.white;
+            if (reward.PointImage != null)
+            {
+                reward.PointImage.gameObject.SetActive(false);
+            }
+        }
+
+        reward.rewardButton.colors = colors;
+    }
+    #endregion
+
     #region Data Management
     [ContextMenu("To Json Data")]
-    void SaveGameDataToJson()
+    private void SaveGameDataToJson()
     {
         string jsonData = JsonUtility.ToJson(gameData, true);
         string path = Path.Combine(Application.dataPath, "Scripts", "GameData.json");
@@ -224,7 +292,7 @@ public class GameManager : MonoBehaviour
     }
 
     [ContextMenu("From Json Data")]
-    void LoadGameDataFromJson()
+    private void LoadGameDataFromJson()
     {
         string path = Path.Combine(Application.dataPath, "Scripts", "GameData.json");
         if (File.Exists(path))
@@ -236,38 +304,15 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
-    #region Fade Animation
-    public void Fade()
+    #region Struct Definition
+    [System.Serializable]
+    public struct Reward
     {
-        StartCoroutine(FadeFlow());
-    }
-
-    IEnumerator FadeFlow()
-    {
-        panel.gameObject.SetActive(true);
-        time = 0f;
-        Color alpha = panel.color;
-
-        while (alpha.a < 1f)
-        {
-            time += Time.deltaTime / fadeTime;
-            alpha.a = Mathf.Lerp(0, 1, time);
-            panel.color = alpha;
-            yield return null;
-        }
-
-        time = 0f;
-        yield return new WaitForSeconds(1f);
-
-        while (alpha.a > 0f)
-        {
-            time += Time.deltaTime / fadeTime;
-            alpha.a = Mathf.Lerp(1, 0, time);
-            panel.color = alpha;
-            yield return null;
-        }
-
-        panel.gameObject.SetActive(false);
+        public int requiredKeys;
+        public int rewardCoins;
+        public Button rewardButton;
+        public Image PointImage;
+        public bool rewardClaimed;
     }
     #endregion
 
@@ -279,9 +324,7 @@ public class GameManager : MonoBehaviour
         public bool[] games;
         public int[] gameScores;
 
-        public GameData()
-        {
-        }
+        public GameData() { }
 
         public GameData(int numberOfStages)
         {
