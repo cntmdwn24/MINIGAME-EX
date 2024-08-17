@@ -72,7 +72,6 @@ public class GameManager : MonoBehaviour
     {
         gameOverPanel.SetActive(false);
         UpdateUI();
-        InitializeRewardButtons();
     }
     #endregion
 
@@ -211,18 +210,6 @@ public class GameManager : MonoBehaviour
     #endregion
 
     #region Reward System
-    private void InitializeRewardButtons()
-    {
-        foreach (var reward in rewards)
-        {
-            if (reward.rewardButton != null)
-            {
-                Button localRewardButton = reward.rewardButton;
-                localRewardButton.onClick.AddListener(() => CheckAndClaimReward(localRewardButton));
-            }
-        }
-    }
-
     public void CheckAndClaimReward(Button rewardButton)
     {
         Reward reward = System.Array.Find(rewards, r => r.rewardButton == rewardButton);
