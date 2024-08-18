@@ -10,7 +10,7 @@ public class NestedScrollManager : MonoBehaviour, IBeginDragHandler, IDragHandle
     public Slider tabSlider;
     public RectTransform[] BtnRect, BtnImageRect;
 
-    const int SIZE = 4;
+    const int SIZE = 3;
     float[] pos = new float[SIZE];
     float distance, curPos, targetPos;
     bool isDrag;
@@ -19,9 +19,14 @@ public class NestedScrollManager : MonoBehaviour, IBeginDragHandler, IDragHandle
 
     void Start()
     {
-        // 거리에 따라 0~1인 pos대입
+        // 초기 설정: 두 번째 화면으로 설정
         distance = 1f / (SIZE - 1);
         for (int i = 0; i < SIZE; i++) pos[i] = distance * i;
+
+        // 초기 화면을 2번 화면으로 설정
+        targetIndex = 1; // 2번 화면을 의미 (배열 index 1)
+        curPos = targetPos = pos[targetIndex];
+        scrollbar.value = targetPos;
     }
 
     float SetPos()
