@@ -56,6 +56,11 @@ public class Game1 : MonoBehaviour
         originalColor1 = bearButton1.image.color;
         originalColor2 = bearButton2.image.color;
         originalColor3 = bearButton3.image.color;
+
+        // 버튼 클릭 이벤트 등록
+        bearButton1.onClick.AddListener(() => OnBearButtonClick(0));
+        bearButton2.onClick.AddListener(() => OnBearButtonClick(1));
+        bearButton3.onClick.AddListener(() => OnBearButtonClick(2));
     }
 
     #region Game Flow
